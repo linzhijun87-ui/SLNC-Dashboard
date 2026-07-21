@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SLNC 镍矿到货仪表盘 - Real-time</title>
+    <style>
+        /* ============================================================
+           GLOBAL STYLE
+           ============================================================ */
+        :root {
+            color-scheme: light;
+            --bg: #f5f7f8;
+            --panel: #ffffff;
+            --panel-soft: #f0f4f4;
+            --text: #17201f;
+            --muted: #60706c;
+            --line: #d8e0de;
+            --teal: #0f766e;
+            --teal-soft: #d9eeeb;
+            --blue: #2563eb;
+            --amber: #b7791f;
+            --red: #b42318;
+            --green: #15803d;
+            --shadow: 0 10px 26px rgba(23, 32, 31, 0.08);
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-width: 320px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+            letter-spacing: 0;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            cursor: pointer;
+        }
+
+        .app {
+            width: min(1440px, 100%);
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .title-block h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 500;
+        }
+        .title-block {
+            min-width: 0;
+        }
+        .title-block p {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .button {
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 7px;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--line);
+            box-shadow: 0 1px 0 rgba(23, 32, 31, 0.04);
+            transition: all 0.2s;
+        }
+        .button:hover {
+            background: var(--panel-soft);
+        }
+        .button.primary {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: #fff;
+        }
+        .button.primary:hover {
+            background: #0b5f59;
+        }
+        .button.success {
+            background: var(--green);
+            border-color: var(--green);
+            color: #fff;
+        }
+        .button.danger {
+            color: var(--red);
+        }
+        .button.danger:hover {
+            background: #fee2e2;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 12px 0 16px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .field label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .field input,
+        .field select {
+            width: 100%;
+            min-height: 40px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: var(--panel);
+            color: var(--text);
+            transition: border 0.2s;
+        }
+        .field input:focus,
+        .field select:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        /* ============================================================
+           STATUS BAR - REAL-TIME INDICATOR
+           ============================================================ */
+        #sync-status-bar {
+            margin-bottom: 12px;
+        }
+        .sync-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .sync-status.offline {
+            background: #fee2e2;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+        .sync-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+        .sync-status.offline .sync-dot {
+            background: #ef4444;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* ============================================================
+           GRID & CARDS
+           ============================================================ */
+        .grid {
+            display: grid;
+            gap: 14px;
+        }
+        .stats {
+            grid-template-columns: repeat(5, minmax(160px, 1fr));
+        }
+        .layout {
+            grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
+            align-items: start;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            min-width: 0;
+        }
+
+        .stat {
+            min-height: 112px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .stat span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .stat strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 25px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .stat small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .panel {
+            padding: 16px;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .panel-header h2,
+        .panel-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .panel-header p {
+            margin: 3px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--teal);
+            flex: 0 0 auto;
+        }
+        .dot.blue {
+            background: var(--blue);
+        }
+        .dot.amber {
+            background: var(--amber);
+        }
+
+        .chart-wrap {
+            min-height: 300px;
+            border-top: 1px solid var(--line);
+            padding-top: 10px;
+        }
+        svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+
+        .axis,
+        .chart-label {
+            fill: var(--muted);
+            font-size: 12px;
+        }
+        .gridline {
+            stroke: var(--line);
+            stroke-width: 1;
+        }
+        .bar {
+            fill: var(--teal);
+        }
+        .bar:hover {
+            fill: #0b5f59;
+        }
+        .line-ni {
+            fill: none;
+            stroke: var(--blue);
+            stroke-width: 3;
+        }
+        .line-mgo {
+            fill: none;
+            stroke: var(--amber);
+            stroke-width: 3;
+        }
+        .point-ni {
+            fill: var(--blue);
+        }
+        .point-mgo {
+            fill: var(--amber);
+        }
+
+        .supplier-list {
+            display: grid;
+            gap: 11px;
+        }
+        .supplier-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+        }
+        .supplier-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .supplier-value {
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            font-size: 13px;
+        }
+        .track {
+            grid-column: 1 / -1;
+            height: 8px;
+            background: var(--panel-soft);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+        .fill {
+            height: 100%;
+            width: 0%;
+            background: var(--teal);
+            border-radius: inherit;
+            transition: width 0.4s ease;
+        }
+
+        .table-card {
+            margin-top: 14px;
+        }
+        .table-shell {
+            overflow-x: auto;
+            border-top: 1px solid var(--line);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        th,
+        td {
+            padding: 11px 12px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+        th {
+            color: var(--muted);
+            font-weight: 500;
+            background: var(--panel-soft);
+            white-space: nowrap;
+        }
+        td.num,
+        th.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: var(--teal-soft);
+            color: #0c554f;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .empty {
+            padding: 24px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .message {
+            min-height: 20px;
+            margin-top: 8px;
+            color: var(--green);
+            font-size: 13px;
+        }
+        .message.error {
+            color: var(--red);
+        }
+
+        /* ============================================================
+           READ-ONLY NOTICE
+           ============================================================ */
+        .readonly-notice {
+            padding: 12px 16px;
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            border-radius: 6px;
+            color: #92400e;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .readonly-notice strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        /* ============================================================
+           TABLE FILTER ROW
+           ============================================================ */
+        .table-filter-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            padding: 12px 0;
+            border-top: 1px solid var(--line);
+        }
+        .table-filter-row .field {
+            gap: 4px;
+        }
+        .table-filter-row .field label {
+            font-size: 11px;
+            color: var(--muted);
+        }
+        .table-filter-row .field select {
+            min-height: 32px;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+
+        .table-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .table-controls label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 1120px) {
+            .stats {
+                grid-template-columns: repeat(3, minmax(160px, 1fr));
+            }
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .app {
+                padding: 16px;
+            }
+            .topbar {
+                flex-direction: column;
+            }
+            .actions {
+                justify-content: flex-start;
+                display: grid;
+                grid-template-columns: 1fr;
+                width: 100%;
+            }
+            .actions .button {
+                width: 100%;
+            }
+            .filters,
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .title-block h1 {
+                font-size: 23px;
+            }
+            .stat strong {
+                font-size: 21px;
+            }
+            .panel-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .table-filter-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="app">
+
+        <!-- ============================================================
+        TOPBAR
+        ============================================================ -->
+        <section class="topbar" aria-labelledby="page-title">
+            <div class="title-block">
+                <h1 id="page-title">SLNC 镍矿到货仪表盘</h1>
+                <p id="source-note">📊 Memuat data dari Google Sheets...</p>
+            </div>
+            <div class="actions" aria-label="数据操作">
+                <button class="button primary" id="refresh-btn" type="button">🔄 Refresh Data</button>
+                <button class="button" id="export-csv" type="button">📥 导出 CSV</button>
+                <button class="button" id="export-json" type="button">📥 导出 JSON</button>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        SYNC STATUS BAR
+        ============================================================ -->
+        <div id="sync-status-bar">
+            <div class="sync-status" id="sync-status">
+                <span class="sync-dot"></span>
+                <span id="sync-text">🔄 Menghubungkan ke Google Sheets...</span>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        FILTERS - 主筛选
+        ============================================================ -->
+        <section class="filters card panel" aria-label="筛选">
+            <div class="field">
+                <label for="range-filter">日期范围</label>
+                <select id="range-filter">
+                    <option value="all">全部日期</option>
+                    <option value="7">最近 7 天</option>
+                    <option value="14">最近 14 天</option>
+                    <option value="30">最近 30 天</option>
+                    <option value="month">最新月份</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="supplier-filter">供应商</label>
+                <select id="supplier-filter">
+                    <option value="all">全部供应商</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="date-from">开始日期</label>
+                <input id="date-from" type="date">
+            </div>
+            <div class="field">
+                <label for="date-to">结束日期</label>
+                <input id="date-to" type="date">
+            </div>
+        </section>
+
+        <!-- ============================================================
+        STATS
+        ============================================================ -->
+        <section class="grid stats" id="stats" aria-label="核心指标"></section>
+
+        <!-- ============================================================
+        CHART + SUPPLIER
+        ============================================================ -->
+        <section class="grid layout" aria-label="图表和供应商">
+            <!-- CHART -->
+            <div class="card panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>每日到货与品质趋势</h2>
+                        <p id="chart-note"></p>
+                    </div>
+                    <div class="legend" aria-label="图例">
+                        <span><i class="dot" aria-hidden="true"></i>到货湿吨</span>
+                        <span><i class="dot blue" aria-hidden="true"></i>Ni</span>
+                        <span><i class="dot amber" aria-hidden="true"></i>MgO</span>
+                    </div>
+                </div>
+                <div class="chart-wrap">
+                    <svg id="daily-chart" viewBox="0 0 920 330" role="img" aria-labelledby="daily-chart-title daily-chart-desc">
+                        <title id="daily-chart-title">每日到货量柱状图</title>
+                        <desc id="daily-chart-desc">显示筛选范围内每天湿吨到货量、加权镍指标和加权镁指标。</desc>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- SUPPLIER -->
+            <aside class="card panel" aria-labelledby="supplier-title">
+                <div class="panel-header">
+                    <div>
+                        <h3 id="supplier-title">供应商占比</h3>
+                        <p>按筛选范围内湿吨汇总</p>
+                    </div>
+                </div>
+                <div class="supplier-list" id="supplier-list">
+                    <div class="empty">加载中...</div>
+                </div>
+
+                <!-- READ-ONLY NOTICE -->
+                <div class="readonly-notice">
+                    <strong>📌 Mode Read-Only</strong>
+                    Data bersumber dari Google Sheets. Untuk mengubah data, silakan update file Excel dan refresh.
+                </div>
+            </aside>
+        </section>
+
+        <!-- ============================================================
+        TABLE
+        ============================================================ -->
+        <section class="card panel table-card" aria-labelledby="table-title">
+            <div class="panel-header">
+                <div>
+                    <h2 id="table-title">明细记录</h2>
+                    <p id="table-note"></p>
+                </div>
+                <div class="table-controls">
+                    <label>
+                        <input type="checkbox" id="group-by-internal" checked>
+                        📦 Group by 内部编号
+                    </label>
+                </div>
+            </div>
+
+            <!-- TABLE FILTERS -->
+            <div class="table-filter-row">
+                <div class="field">
+                    <label for="filter-internal">内部编号</label>
+                    <select id="filter-internal">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="filter-date">日期</label>
+                    <select id="filter-date">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="filter-mine">矿区</label>
+                    <select id="filter-mine">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="filter-ni">Ni (%)</label>
+                    <select id="filter-ni">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="filter-cr">Cr (%)</label>
+                    <select id="filter-cr">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="filter-mgo">MgO (%)</label>
+                    <select id="filter-mgo">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="filter-mc">MC (%)</label>
+                    <select id="filter-mc">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>内部编号</th>
+                            <th>供应商</th>
+                            <th>日期</th>
+                            <th>矿区</th>
+                            <th class="num">到货湿吨</th>
+                            <th class="num">Ni</th>
+                            <th class="num">MgO</th>
+                            <th class="num">Cr</th>
+                            <th class="num">MC</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // 🔧 KONFIGURASI
+        // ============================================================
+
+        const SPREADSHEET_ID = '1BqZ5Qn-Nseo3cxRvPnrJ0Gn-S53Vx5wfxzIpBSMMcDo';
+        const API_KEY = 'AIzaSyAvMVd5IZWx0N1Nz_uuFJblcj-ZiPdyqH8';
+        const SHEET_RANGE = '陆运总表!A:BT';
+
+        // ============================================================
+        // VARIABEL GLOBAL
+        // ============================================================
+
+        const STORAGE_KEY = 'slnc-nickel-dashboard-v2';
+        let records = [];
+        let filtered = [];
+        let autoRefreshInterval = null;
+        let isLoading = false;
+
+        // ============================================================
+        // ELEMEN DOM
+        // ============================================================
+
+        const els = {
+            stats: document.getElementById('stats'),
+            sourceNote: document.getElementById('source-note'),
+            chartNote: document.getElementById('chart-note'),
+            tableNote: document.getElementById('table-note'),
+            supplierList: document.getElementById('supplier-list'),
+            supplierFilter: document.getElementById('supplier-filter'),
+            rangeFilter: document.getElementById('range-filter'),
+            dateFrom: document.getElementById('date-from'),
+            dateTo: document.getElementById('date-to'),
+            recordsBody: document.getElementById('records-body'),
+            chart: document.getElementById('daily-chart'),
+            syncStatus: document.getElementById('sync-status'),
+            syncText: document.getElementById('sync-text'),
+            refreshBtn: document.getElementById('refresh-btn'),
+            // Table filters
+            filterInternal: document.getElementById('filter-internal'),
+            filterDate: document.getElementById('filter-date'),
+            filterMine: document.getElementById('filter-mine'),
+            filterNi: document.getElementById('filter-ni'),
+            filterCr: document.getElementById('filter-cr'),
+            filterMgo: document.getElementById('filter-mgo'),
+            filterMc: document.getElementById('filter-mc'),
+            groupByInternal: document.getElementById('group-by-internal'),
+        };
+
+        // ============================================================
+        // FUNGSI LOAD DARI GOOGLE SHEETS
+        // ============================================================
+
+        async function loadFromGoogleSheets() {
+            try {
+                const url =
+                    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE}?key=${API_KEY}`;
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.values || data.values.length === 0) {
+                    console.warn('📭 Tidak ada data di Google Sheets');
+                    return null;
+                }
+
+                const rows = data.values.slice(1);
+                console.log(`📊 Ditemukan ${rows.length} baris data`);
+
+                const loadedRecords = [];
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
+
+                    function parseNumber(value) {
+                        if (!value) return 0;
+                        const str = String(value).replace(/,/g, '.').replace(/[^0-9.]/g, '');
+                        const num = parseFloat(str);
+                        return isNaN(num) ? 0 : num;
+                    }
+
+                    const internalCode = String(row[0] || '').trim();
+                    const supplier = String(row[4] || '').trim();
+                    const dateRaw = row[2] || '';
+                    const mine = String(row[6] || '').trim();
+                    const weight = parseNumber(row[15]);
+                    const ni = parseNumber(row[18]);
+                    const cr = parseNumber(row[24]);
+                    const mgo = parseNumber(row[26]);
+                    const mc = parseNumber(row[30]);
+
+                    if (!dateRaw || weight <= 0 || !supplier) continue;
+
+                    let dateStr = String(dateRaw).trim();
+                    if (dateStr.includes('/')) {
+                        const parts = dateStr.split('/');
+                        dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                    }
+                    if (dateStr.includes(',')) {
+                        dateStr = dateStr.replace(/,/g, '-');
+                    }
+                    if (dateStr.includes(' ')) {
+                        dateStr = dateStr.split(' ')[0];
+                    }
+
+                    loadedRecords.push({
+                        id: `row-${i}-${Date.now()}`,
+                        internalCode: internalCode || '-',
+                        supplier: supplier,
+                        date: dateStr,
+                        mine: mine || '-',
+                        ore: '褐铁矿(Limonite)',
+                        weight: weight,
+                        ni: ni > 0 ? ni : null,
+                        cr: cr > 0 ? cr : null,
+                        mgo: mgo > 0 ? mgo : null,
+                        mc: mc > 0 ? mc : null,
+                        source: 'Google Sheets'
+                    });
+                }
+
+                console.log(`✅ Loaded ${loadedRecords.length} records`);
+
+                if (loadedRecords.length > 0) {
+                    console.log('📋 Sample data:', loadedRecords.slice(0, 3));
+                }
+
+                return loadedRecords;
+
+            } catch (error) {
+                console.error('❌ Error:', error);
+                return null;
+            }
+        }
+
+        // ============================================================
+        // FUNGSI REFRESH DATA
+        // ============================================================
+
+        async function refreshData(showMessage = true) {
+            if (isLoading) return;
+            isLoading = true;
+
+            if (els.refreshBtn) {
+                els.refreshBtn.textContent = '⏳ Loading...';
+                els.refreshBtn.disabled = true;
+            }
+
+            updateSyncStatus('loading', '🔄 Mengambil data terbaru...');
+
+            try {
+                const data = await loadFromGoogleSheets();
+
+                if (data && data.length > 0) {
+                    const currentIds = new Set(records.map(r => r.id));
+                    const newIds = new Set(data.map(r => r.id));
+
+                    const hasChanged = currentIds.size !== newIds.size ||
+                        ![...newIds].every(id => currentIds.has(id));
+
+                    if (hasChanged || records.length === 0) {
+                        records = data;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                        console.log(`✅ Data diperbarui: ${records.length} records`);
+
+                        if (showMessage) {
+                            showNotification('✅ Data berhasil diperbarui dari Google Sheets');
+                        }
+                    } else {
+                        if (showMessage) {
+                            showNotification('✅ Data sudah terbaru');
+                        }
+                    }
+
+                    render();
+                    updateSyncStatus('online', `✅ Terhubung • ${records.length} records • ${new Date().toLocaleTimeString()}`);
+
+                } else {
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            records = parsed;
+                            render();
+                            updateSyncStatus('offline', '⚠️ Menggunakan data lokal (offline mode)');
+                            if (showMessage) {
+                                showNotification('⚠️ Gagal sync, menggunakan data lokal', true);
+                            }
+                            return;
+                        }
+                    }
+
+                    updateSyncStatus('offline', '⚠️ Tidak ada data');
+                    if (showMessage) {
+                        showNotification('⚠️ Tidak ada data yang ditemukan', true);
+                    }
+                }
+
+            } catch (error) {
+                console.error('❌ Refresh error:', error);
+                updateSyncStatus('offline', '⚠️ Error koneksi');
+
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        records = parsed;
+                        render();
+                        if (showMessage) {
+                            showNotification('⚠️ Menggunakan data lokal (error koneksi)', true);
+                        }
+                        return;
+                    }
+                }
+
+                if (showMessage) {
+                    showNotification('❌ Gagal memuat data: ' + error.message, true);
+                }
+
+            } finally {
+                isLoading = false;
+                if (els.refreshBtn) {
+                    els.refreshBtn.textContent = '🔄 Refresh Data';
+                    els.refreshBtn.disabled = false;
+                }
+            }
+        }
+
+        // ============================================================
+        // LOAD RECORDS
+        // ============================================================
+
+        async function loadRecords() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        records = parsed;
+                        render();
+                        console.log(`📦 Loaded ${records.length} records dari localStorage (cache)`);
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
+            await refreshData(false);
+        }
+
+        // ============================================================
+        // NOTIFICATION
+        // ============================================================
+
+        function showNotification(message, isError = false) {
+            const note = document.getElementById('source-note');
+            if (!note) return;
+
+            note.textContent = message;
+            note.style.color = isError ? '#dc2626' : '#15803d';
+            note.style.fontWeight = 'bold';
+
+            if (window.notificationTimeout) clearTimeout(window.notificationTimeout);
+            window.notificationTimeout = setTimeout(() => {
+                if (records.length > 0) {
+                    const bounds = dateBounds(records);
+                    note.textContent = `📊 ${records.length} records • ${bounds.min || '-'} 至 ${bounds.max || '-'}`;
+                } else {
+                    note.textContent = '📊 Tidak ada data';
+                }
+                note.style.color = '';
+                note.style.fontWeight = '';
+            }, 4000);
+        }
+
+        // ============================================================
+        // UPDATE SYNC STATUS
+        // ============================================================
+
+        function updateSyncStatus(status, text) {
+            const el = els.syncStatus;
+            const textEl = els.syncText;
+            if (!el || !textEl) return;
+
+            el.className = 'sync-status';
+
+            if (status === 'online') {
+                el.classList.add('online');
+                el.querySelector('.sync-dot').style.background = '#22c55e';
+            } else if (status === 'offline') {
+                el.classList.add('offline');
+                el.querySelector('.sync-dot').style.background = '#ef4444';
+            } else {
+                el.querySelector('.sync-dot').style.background = '#f59e0b';
+                el.querySelector('.sync-dot').style.animation = 'pulse 0.8s infinite';
+            }
+
+            textEl.textContent = text;
+        }
+
+        // ============================================================
+        // FILTER & AGGREGATE
+        // ============================================================
+
+        function dateBounds(rows) {
+            if (!rows || rows.length === 0) return { min: '', max: '' };
+            return rows.reduce((bounds, row) => ({
+                min: !bounds.min || row.date < bounds.min ? row.date : bounds.min,
+                max: !bounds.max || row.date > bounds.max ? row.date : bounds.max
+            }), { min: '', max: '' });
+        }
+
+        // 主筛选器 (顶部)
+        function getMainFilters() {
+            return {
+                supplier: els.supplierFilter ? els.supplierFilter.value : 'all',
+                dateFrom: els.dateFrom ? els.dateFrom.value : '',
+                dateTo: els.dateTo ? els.dateTo.value : '',
+            };
+        }
+
+        // 明细筛选器 (表格上方)
+        function getTableFilters() {
+            return {
+                internalCode: els.filterInternal ? els.filterInternal.value : 'all',
+                date: els.filterDate ? els.filterDate.value : 'all',
+                mine: els.filterMine ? els.filterMine.value : 'all',
+                ni: els.filterNi ? els.filterNi.value : 'all',
+                cr: els.filterCr ? els.filterCr.value : 'all',
+                mgo: els.filterMgo ? els.filterMgo.value : 'all',
+                mc: els.filterMc ? els.filterMc.value : 'all',
+                groupByInternal: els.groupByInternal ? els.groupByInternal.checked : true,
+            };
+        }
+
+        // 应用所有筛选
+        function applyAllFilters(rows) {
+            if (!rows || !Array.isArray(rows)) return [];
+
+            const main = getMainFilters();
+            const table = getTableFilters();
+
+            // 第一步：主筛选
+            let result = rows.filter(row => {
+                if (main.supplier !== 'all' && row.supplier !== main.supplier) return false;
+                if (main.dateFrom && row.date < main.dateFrom) return false;
+                if (main.dateTo && row.date > main.dateTo) return false;
+                return true;
+            });
+
+            // 第二步：表格筛选
+            result = result.filter(row => {
+                if (table.internalCode !== 'all' && row.internalCode !== table.internalCode) return false;
+                if (table.date !== 'all' && row.date !== table.date) return false;
+                if (table.mine !== 'all' && row.mine !== table.mine) return false;
+                
+                if (table.ni !== 'all') {
+                    const val = row.ni !== null && row.ni !== undefined ? row.ni.toFixed(2) : 'null';
+                    if (val !== table.ni) return false;
+                }
+                if (table.cr !== 'all') {
+                    const val = row.cr !== null && row.cr !== undefined ? row.cr.toFixed(2) : 'null';
+                    if (val !== table.cr) return false;
+                }
+                if (table.mgo !== 'all') {
+                    const val = row.mgo !== null && row.mgo !== undefined ? row.mgo.toFixed(2) : 'null';
+                    if (val !== table.mgo) return false;
+                }
+                if (table.mc !== 'all') {
+                    const val = row.mc !== null && row.mc !== undefined ? row.mc.toFixed(2) : 'null';
+                    if (val !== table.mc) return false;
+                }
+                return true;
+            });
+
+            // 第三步：Group by
+            if (table.groupByInternal) {
+                result = groupByInternalCode(result);
+            }
+
+            return result;
+        }
+
+        // Group by 内部编号
+        function groupByInternalCode(rows) {
+            if (!rows || !Array.isArray(rows) || rows.length === 0) return [];
+
+            const map = new Map();
+
+            rows.forEach(row => {
+                if (!row || !row.internalCode) return;
+
+                if (!map.has(row.internalCode)) {
+                    map.set(row.internalCode, {
+                        internalCode: row.internalCode,
+                        supplier: row.supplier || '-',
+                        rows: [],
+                        totalWeight: 0,
+                        totalNi: 0,
+                        totalCr: 0,
+                        totalMgo: 0,
+                        totalMc: 0,
+                        weightBase: 0,
+                        dates: [],
+                        mines: new Set(),
+                        suppliers: new Set(),
+                    });
+                }
+
+                const group = map.get(row.internalCode);
+                group.rows.push(row);
+                group.totalWeight += (row.weight || 0);
+                if (row.date) group.dates.push(row.date);
+                if (row.mine) group.mines.add(row.mine);
+                if (row.supplier) group.suppliers.add(row.supplier);
+
+                if (row.ni !== null && row.ni !== undefined && row.ni > 0 && (row.weight || 0) > 0) {
+                    group.totalNi += row.ni * (row.weight || 0);
+                    group.weightBase += (row.weight || 0);
+                }
+                if (row.cr !== null && row.cr !== undefined && row.cr > 0 && (row.weight || 0) > 0) {
+                    group.totalCr += row.cr * (row.weight || 0);
+                }
+                if (row.mgo !== null && row.mgo !== undefined && row.mgo > 0 && (row.weight || 0) > 0) {
+                    group.totalMgo += row.mgo * (row.weight || 0);
+                }
+                if (row.mc !== null && row.mc !== undefined && row.mc > 0 && (row.weight || 0) > 0) {
+                    group.totalMc += row.mc * (row.weight || 0);
+                }
+            });
+
+            const base = 1;
+            return [...map.values()].map(group => ({
+                internalCode: group.internalCode,
+                supplier: [...group.suppliers].join(', ') || '-',
+                date: group.dates.length > 1 ? `${group.dates[0]} ~ ${group.dates[group.dates.length - 1]}` : group.dates[0] || '-',
+                mine: [...group.mines].join(', ') || '-',
+                weight: group.totalWeight,
+                ni: group.weightBase > 0 ? group.totalNi / group.weightBase : null,
+                cr: group.weightBase > 0 ? group.totalCr / group.weightBase : null,
+                mgo: group.weightBase > 0 ? group.totalMgo / group.weightBase : null,
+                mc: group.weightBase > 0 ? group.totalMc / group.weightBase : null,
+                count: group.rows.length,
+                isGrouped: true,
+            }));
+        }
+
+        function aggregateDaily(rows) {
+            const map = new Map();
+            rows.forEach((row) => {
+                if (!map.has(row.date)) {
+                    map.set(row.date, { date: row.date, weight: 0, rows: [], suppliers: new Set() });
+                }
+                const item = map.get(row.date);
+                item.weight += row.weight;
+                item.rows.push(row);
+                item.suppliers.add(row.supplier);
+            });
+
+            return [...map.values()]
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .map((item) => ({
+                    date: item.date,
+                    weight: item.weight,
+                    ni: weightedAverage(item.rows, 'ni'),
+                    mgo: weightedAverage(item.rows, 'mgo'),
+                    suppliers: item.suppliers.size,
+                    count: item.rows.length
+                }));
+        }
+
+        function weightedAverage(rows, key) {
+            let value = 0;
+            let base = 0;
+            rows.forEach((row) => {
+                if (row[key] !== null && row[key] !== undefined && row[key] > 0 && row.weight > 0) {
+                    value += row[key] * row.weight;
+                    base += row.weight;
+                }
+            });
+            return base ? value / base : null;
+        }
+
+        function aggregateSuppliers(rows) {
+            const map = new Map();
+            rows.forEach((row) => {
+                if (!map.has(row.supplier)) {
+                    map.set(row.supplier, { supplier: row.supplier, weight: 0, rows: [] });
+                }
+                const item = map.get(row.supplier);
+                item.weight += row.weight;
+                item.rows.push(row);
+            });
+
+            return [...map.values()]
+                .sort((a, b) => b.weight - a.weight)
+                .map((item) => ({
+                    ...item,
+                    ni: weightedAverage(item.rows, 'ni'),
+                    mgo: weightedAverage(item.rows, 'mgo')
+                }));
+        }
+
+        // ============================================================
+        // UTILITY
+        // ============================================================
+
+        function formatTons(value, digits = 0) {
+            return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: digits }).format(value || 0)} 湿吨`;
+        }
+
+        function formatNumber(value, digits = 2) {
+            if (value === null || value === undefined || Number.isNaN(value) || value === 0) return '-';
+            return Number(value).toFixed(digits) + '%';
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            } [char]));
+        }
+
+        function uniqueSorted(values) {
+            return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+        }
+
+        function formatCompact(value) {
+            if (value >= 10000) return `${(value / 10000).toFixed(1)}万`;
+            return Math.round(value).toLocaleString('zh-CN');
+        }
+
+        // 获取唯一值用于筛选器选项
+        function getUniqueValues(rows, key) {
+            const values = rows
+                .map(row => row[key] !== null && row[key] !== undefined && row[key] !== '' ? row[key] : null)
+                .filter(v => v !== null && v !== undefined && v !== '')
+                .sort((a, b) => {
+                    if (typeof a === 'number' && typeof b === 'number') return a - b;
+                    return String(a).localeCompare(String(b));
+                });
+            return [...new Set(values.map(v => typeof v === 'number' ? v.toFixed(2) : String(v)))];
+        }
+
+        // ============================================================
+        // RENDER FUNCTIONS
+        // ============================================================
+
+        function renderStats(rows, daily) {
+            const latestDay = daily[daily.length - 1];
+            const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+            const suppliers = uniqueSorted(rows.map((row) => row.supplier)).length;
+            const ni = weightedAverage(rows, 'ni');
+            const mgo = weightedAverage(rows, 'mgo');
+            const avgDaily = daily.length ? totalWeight / daily.length : 0;
+
+            const stats = [
+                { label: '最新日到货量', value: latestDay ? formatTons(latestDay.weight, 0) : '-', note: latestDay ?
+                        latestDay.date : '无数据' },
+                { label: '累计到货量', value: formatTons(totalWeight, 0), note: `${daily.length} 个到货日` },
+                { label: '加权 Ni', value: ni === null ? '-' : formatNumber(ni, 2), note: '按湿吨加权' },
+                { label: '加权 MgO', value: mgo === null ? '-' : formatNumber(mgo, 2), note: '按湿吨加权' },
+                { label: '供应商', value: `${suppliers}`, note: `日均 ${formatTons(avgDaily, 0)}` }
+            ];
+
+            els.stats.innerHTML = stats.map((item) => `
+                <article class="card stat">
+                    <span>${item.label}</span>
+                    <strong>${item.value}</strong>
+                    <small>${item.note}</small>
+                </article>
+            `).join('');
+        }
+
+        function renderSuppliers(items) {
+            const max = Math.max(...items.map((item) => item.weight), 0);
+            if (!items.length) {
+                els.supplierList.innerHTML = `<div class="empty">没有匹配的供应商数据</div>`;
+                return;
+            }
+
+            els.supplierList.innerHTML = items.map((item) => {
+                const pct = max ? (item.weight / max) * 100 : 0;
+                return `
+                    <div class="supplier-row">
+                        <div class="supplier-name">${escapeHtml(item.supplier)}</div>
+                        <div class="supplier-value">${formatTons(item.weight, 0)}</div>
+                        <div class="track" aria-hidden="true">
+                            <div class="fill" style="width:${pct.toFixed(1)}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTable(rows) {
+            if (!rows || !Array.isArray(rows) || rows.length === 0) {
+                els.recordsBody.innerHTML = `<tr><td colspan="9" class="empty">没有匹配的明细记录</td></tr>`;
+                els.tableNote.textContent = '当前显示 0 条记录';
+                return;
+            }
+
+            // 如果是 grouped data，按日期排序
+            const sorted = [...rows].sort((a, b) => {
+                if (!a.date) return 1;
+                if (!b.date) return -1;
+                return b.date.localeCompare(a.date) || (a.internalCode || '').localeCompare(b.internalCode || '');
+            });
+
+            els.tableNote.textContent = `当前显示 ${sorted.length} 条记录 (共 ${records.length} 条)`;
+
+            els.recordsBody.innerHTML = sorted.map((row) => `
+                <tr>
+                    <td>${escapeHtml(row.internalCode || '-')}</td>
+                    <td>${escapeHtml(row.supplier || '-')}</td>
+                    <td>${row.date || '-'}</td>
+                    <td>${escapeHtml(row.mine || '-')}</td>
+                    <td class="num">${(row.weight || 0).toFixed(2)}</td>
+                    <td class="num">${formatNumber(row.ni, 2)}</td>
+                    <td class="num">${formatNumber(row.mgo, 2)}</td>
+                    <td class="num">${formatNumber(row.cr, 2)}</td>
+                    <td class="num">${formatNumber(row.mc, 2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ============================================================
+        // RENDER CHART
+        // ============================================================
+
+        function renderChart(daily) {
+            const svg = els.chart;
+
+            while (svg.lastChild && !['daily-chart-title', 'daily-chart-desc'].includes(svg.lastChild.id)) {
+                svg.removeChild(svg.lastChild);
+            }
+            const old = [...svg.children].filter((node) => !['daily-chart-title', 'daily-chart-desc'].includes(node.id));
+            old.forEach((node) => node.remove());
+
+            if (!daily.length) {
+                appendSvg('text', { x: 460, y: 165, 'text-anchor': 'middle', class: 'axis' }, '没有匹配的数据');
+                els.chartNote.textContent = '当前筛选范围无数据';
+                return;
+            }
+
+            const width = 920;
+            const height = 330;
+            const pad = { left: 64, right: 36, top: 24, bottom: 44 };
+            const chartW = width - pad.left - pad.right;
+            const chartH = height - pad.top - pad.bottom;
+            const maxWeight = Math.max(...daily.map((d) => d.weight), 1);
+
+            const qualityValues = daily.flatMap((d) => [d.ni, d.mgo]).filter((v) => v !== null && v !== undefined && v > 0);
+            const maxQuality = Math.max(...qualityValues, 1);
+
+            const yWeight = (value) => pad.top + chartH - (value / maxWeight) * chartH;
+            const yQuality = (value) => pad.top + chartH - (value / maxQuality) * chartH;
+            const step = chartW / daily.length;
+            const barW = Math.max(4, Math.min(24, step * 0.58));
+            const x = (index) => pad.left + step * index + step / 2;
+
+            for (let i = 0; i <= 4; i += 1) {
+                const y = pad.top + (chartH * i) / 4;
+                appendSvg('line', { x1: pad.left, x2: width - pad.right, y1: y, y2: y, class: 'gridline' });
+                appendSvg('text', { x: pad.left - 10, y: y + 4, 'text-anchor': 'end', class: 'axis' },
+                    formatCompact(maxWeight * (1 - i / 4)));
+            }
+
+            appendSvg('text', { x: pad.left, y: 14, class: 'axis' }, '湿吨');
+            appendSvg('text', { x: width - pad.right, y: 14, 'text-anchor': 'end', class: 'axis' }, '指标 %');
+
+            daily.forEach((d, index) => {
+                const bx = x(index) - barW / 2;
+                const by = yWeight(d.weight);
+                const bh = pad.top + chartH - by;
+                const bar = appendSvg('rect', { x: bx, y: by, width: barW, height: Math.max(bh, 1), rx: 3,
+                    class: 'bar', tabindex: '0' });
+                appendSvg('title', {},
+                    `${d.date}\n到货 ${formatTons(d.weight, 2)}\nNi ${formatNumber(d.ni, 2)}\nMgO ${formatNumber(d.mgo, 2)}`,
+                    bar);
+            });
+
+            const niPoints = daily.map((d, index) => d.ni === null || d.ni <= 0 ? null : [x(index), yQuality(d.ni), d])
+                .filter(Boolean);
+            drawPath(niPoints, 'line-ni');
+            niPoints.forEach(([px, py, d]) => {
+                const point = appendSvg('circle', { cx: px, cy: py, r: 4, class: 'point-ni', tabindex: '0' });
+                appendSvg('title', {}, `${d.date}\nNi ${formatNumber(d.ni, 2)}`, point);
+            });
+
+            const mgoPoints = daily.map((d, index) => d.mgo === null || d.mgo <= 0 ? null : [x(index), yQuality(d.mgo), d])
+                .filter(Boolean);
+            drawPath(mgoPoints, 'line-mgo');
+            mgoPoints.forEach(([px, py, d]) => {
+                const point = appendSvg('circle', { cx: px, cy: py, r: 4, class: 'point-mgo', tabindex: '0' });
+                appendSvg('title', {}, `${d.date}\nMgO ${formatNumber(d.mgo, 2)}`, point);
+            });
+
+            const labelEvery = Math.max(1, Math.ceil(daily.length / 9));
+            daily.forEach((d, index) => {
+                if (index % labelEvery === 0 || index === daily.length - 1) {
+                    appendSvg('text', { x: x(index), y: height - 16, 'text-anchor': 'middle', class: 'axis' }, d
+                        .date.slice(5));
+                }
+            });
+
+            els.chartNote.textContent = `${daily[0].date} 至 ${daily[daily.length - 1].date}，共 ${daily.length} 个到货日`;
+        }
+
+        function drawPath(points, className) {
+            if (!points.length) return;
+            const d = points.map(([px, py], index) =>
+                `${index ? 'L' : 'M'} ${px.toFixed(2)} ${py.toFixed(2)}`
+            ).join(' ');
+            appendSvg('path', { d, class: className });
+        }
+
+        function appendSvg(tag, attrs = {}, text = '', parent = els.chart) {
+            const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+            if (text) node.textContent = text;
+            parent.appendChild(node);
+            return node;
+        }
+
+        // ============================================================
+        // UPDATE FILTER OPTIONS
+        // ============================================================
+
+        function updateFilterOptions() {
+            if (!records || records.length === 0) return;
+
+            const fields = {
+                'filter-internal': 'internalCode',
+                'filter-date': 'date',
+                'filter-mine': 'mine',
+                'filter-ni': 'ni',
+                'filter-cr': 'cr',
+                'filter-mgo': 'mgo',
+                'filter-mc': 'mc',
+            };
+
+            Object.entries(fields).forEach(([elId, key]) => {
+                const select = document.getElementById(elId);
+                if (!select) return;
+
+                const current = select.value;
+                const values = getUniqueValues(records, key);
+                select.innerHTML = `<option value="all">全部</option>`;
+                values.forEach(val => {
+                    select.innerHTML += `<option value="${val}">${val}</option>`;
+                });
+                // 恢复选中值
+                if (values.includes(current) || current === 'all') {
+                    select.value = current;
+                }
+            });
+
+            // 更新供应商筛选器
+            const supplierSelect = els.supplierFilter;
+            if (supplierSelect) {
+                const current = supplierSelect.value;
+                const suppliers = uniqueSorted(records.map(r => r.supplier));
+                supplierSelect.innerHTML = `<option value="all">全部供应商</option>`;
+                suppliers.forEach(s => {
+                    supplierSelect.innerHTML += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
+                });
+                if (suppliers.includes(current) || current === 'all') {
+                    supplierSelect.value = current;
+                }
+            }
+        }
+
+        // ============================================================
+        // MAIN RENDER
+        // ============================================================
+
+        function render() {
+            // 1. 更新筛选器选项
+            updateFilterOptions();
+
+            // 2. 应用所有筛选
+            const displayData = applyAllFilters(records || []);
+
+            // 3. 渲染统计、图表、供应商、表格
+            const daily = aggregateDaily(displayData);
+            const suppliers = aggregateSuppliers(displayData);
+
+            renderStats(displayData, daily);
+            renderChart(daily);
+            renderSuppliers(suppliers);
+            renderTable(displayData);
+
+            // 更新来源信息
+            if (records.length > 0) {
+                const bounds = dateBounds(records);
+                document.getElementById('source-note').textContent =
+                    `📊 ${records.length} records • ${bounds.min || '-'} 至 ${bounds.max || '-'}`;
+            } else {
+                document.getElementById('source-note').textContent = '📊 Tidak ada data';
+            }
+        }
+
+        // ============================================================
+        // EXPORT FUNCTIONS
+        // ============================================================
+
+        function downloadFile(filename, content, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCsv() {
+            if (!records.length) {
+                showNotification('⚠️ Tidak ada data untuk diexport', true);
+                return;
+            }
+            const header = ['内部编号', '供应商', '日期', '矿区', '到货湿吨', 'Ni(%)', 'MgO(%)', 'Cr(%)', 'MC(%)', '来源'];
+            const rows = records.map((r) => [r.internalCode, r.supplier, r.date, r.mine || '', r.weight, r.ni ?? '', r.mgo ?? '',
+                r.cr ?? '', r.mc ?? '', r.source
+            ]);
+            const csv = [header, ...rows].map((line) =>
+                line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+            ).join('\n');
+            downloadFile(`SLNC-Data-${new Date().toISOString().slice(0,10)}.csv`, `\ufeff${csv}`,
+            'text/csv;charset=utf-8');
+            showNotification('✅ CSV berhasil diexport');
+        }
+
+        function exportJson() {
+            if (!records.length) {
+                showNotification('⚠️ Tidak ada data untuk diexport', true);
+                return;
+            }
+            downloadFile(`SLNC-Data-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(records, null, 2),
+                'application/json;charset=utf-8');
+            showNotification('✅ JSON berhasil diexport');
+        }
+
+        // ============================================================
+        // AUTO-REFRESH
+        // ============================================================
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(() => {
+                refreshData(false);
+            }, 30000);
+            console.log('🔄 Auto-refresh started (every 30s)');
+        }
+
+        // ============================================================
+        // MONITOR KONEKSI
+        // ============================================================
+
+        window.addEventListener('online', () => {
+            updateSyncStatus('loading', '🔄 Koneksi kembali, sync data...');
+            refreshData(true);
+        });
+
+        window.addEventListener('offline', () => {
+            updateSyncStatus('offline', '⚠️ Offline - Menggunakan data lokal');
+            showNotification('⚠️ Koneksi terputus', true);
+        });
+
+        // ============================================================
+        // BIND FILTER EVENTS
+        // ============================================================
+
+        function bindFilterEvents() {
+            // 所有筛选器变化时重新渲染
+            const filterSelectors = [
+                '#supplier-filter', '#range-filter', '#date-from', '#date-to',
+                '#filter-internal', '#filter-date', '#filter-mine',
+                '#filter-ni', '#filter-cr', '#filter-mgo', '#filter-mc',
+                '#group-by-internal'
+            ];
+
+            filterSelectors.forEach(selector => {
+                const el = document.querySelector(selector);
+                if (el) {
+                    el.addEventListener('change', render);
+                    if (el.type === 'date') {
+                        el.addEventListener('change', () => {
+                            if (els.rangeFilter) els.rangeFilter.value = 'all';
+                            render();
+                        });
+                    }
+                }
+            });
+        }
+
+        // ============================================================
+        // BUTTON EVENTS
+        // ============================================================
+
+        document.getElementById('refresh-btn').addEventListener('click', () => refreshData(true));
+        document.getElementById('export-csv').addEventListener('click', exportCsv);
+        document.getElementById('export-json').addEventListener('click', exportJson);
+
+        // ============================================================
+        // INIT
+        // ============================================================
+
+        (async function init() {
+            console.log('🚀 SLNC Dashboard Starting...');
+            console.log(`📊 Spreadsheet ID: ${SPREADSHEET_ID}`);
+
+            // Set default date range
+            const today = new Date();
+            const monthAgo = new Date(today);
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            if (els.dateFrom) els.dateFrom.value = monthAgo.toISOString().slice(0, 10);
+            if (els.dateTo) els.dateTo.value = today.toISOString().slice(0, 10);
+
+            // 绑定筛选器事件
+            bindFilterEvents();
+
+            // Load data
+            await loadRecords();
+
+            // Start auto-refresh
+            startAutoRefresh();
+
+            console.log(`✅ Dashboard Ready! ${records.length} records loaded`);
+            console.log('🔄 Auto-refresh: every 30 seconds');
+        })();
+
+        // Expose to console for debugging
+        window.refreshData = refreshData;
+        window.records = () => records;
+        window.exportCsv = exportCsv;
+        window.exportJson = exportJson;
+    </script>
+
+</body>
+</html>
